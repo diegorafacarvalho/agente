@@ -1,0 +1,47 @@
+# Microsoft Graph API (Outlook)
+msal==1.25.0
+requests==2.31.0
+O365==2.0.34
+
+# IA e Processamento de Linguagem
+# Opção 1: OpenAI (paga, mas com trial gratuito)
+openai==1.3.0
+langchain==0.1.0
+langchain-openai==0.0.2
+
+# Opção 2: Google Gemini (GRÁTIS - até 60 req/min)
+google-generativeai==0.3.2
+langchain-google-genai==0.0.3
+
+# Opção 3: Ollama (GRÁTIS - roda localmente)
+ollama==0.1.6
+
+# Opção 4: Hugging Face (GRÁTIS - modelos open source)
+transformers==4.36.0
+torch==2.1.0
+accelerate==0.25.0
+
+# Agendamento e Tarefas
+APScheduler==3.10.4
+python-dateutil==2.8.2
+
+# Banco de Dados
+sqlalchemy==2.0.23
+
+# Utilitários
+python-dotenv==1.0.0
+pydantic==2.5.0
+pydantic-settings==2.1.0
+
+# Logs e Monitoramento
+loguru==0.7.2
+
+# Testes
+pytest==7.4.3
+pytest-asyncio==0.21.1
+
+# Web Dashboard (Interface Visual)
+flask==3.0.0
+flask-socketio==5.3.6
+python-socketio==5.10.0
+eventlet==0.34.2
