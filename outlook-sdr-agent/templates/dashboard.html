@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SDR Agent - Dashboard Inteligente</title>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Header */
+        header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            padding: 24px 32px;
+            margin-bottom: 24px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo-icon {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: white;
+        }
+
+        .logo h1 {
+            font-size: 24px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .status-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: #f0fdf4;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 500;
+            color: #16a34a;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background: #16a34a;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Stats Cards */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-4px);
+        }
+
+        .stat-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            margin-bottom: 12px;
+        }
+
+        .stat-icon.emails { background: #dbeafe; }
+        .stat-icon.responses { background: #dcfce7; }
+        .stat-icon.followups { background: #fef3c7; }
+        .stat-icon.meetings { background: #fae8ff; }
+
+        .stat-value {
+            font-size: 32px;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 4px;
+        }
+
+        .stat-label {
+            font-size: 14px;
+            color: #64748b;
+            font-weight: 500;
+        }
+
+        /* Main Content */
+        .content-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+        }
+
+        @media (max-width: 1024px) {
+            .content-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .panel {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .panel-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #1e293b;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .refresh-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: transform 0.2s;
+        }
+
+        .refresh-btn:hover {
+            transform: scale(1.05);
+        }
+
+        .refresh-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Email List */
+        .email-list {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+
+        .email-card {
+            background: #f8fafc;
+            border-radius: 12px;
+            padding: 20px;
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
+        }
+
+        .email-card:hover {
+            border-color: #667eea;
+            background: white;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        }
+
+        .email-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+        }
+
+        .email-subject {
+            font-size: 16px;
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 4px;
+        }
+
+        .email-sender {
+            font-size: 14px;
+            color: #64748b;
+        }
+
+        .email-time {
+            font-size: 12px;
+            color: #94a3b8;
+        }
+
+        .email-preview {
+            font-size: 14px;
+            color: #475569;
+            margin-bottom: 16px;
+            line-height: 1.5;
+        }
+
+        .classification-tags {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        .tag {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .tag.hot { background: #fee2e2; color: #dc2626; }
+        .tag.warm { background: #fef3c7; color: #d97706; }
+        .tag.cold { background: #dbeafe; color: #2563eb; }
+        .tag.intent { background: #f3e8ff; color: #9333ea; }
+
+        .response-section {
+            background: white;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+
+        .response-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #64748b;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+
+        .response-text {
+            font-size: 14px;
+            color: #334155;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .email-actions {
+            display: flex;
+            gap: 12px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: 500;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-approve {
+            background: #16a34a;
+            color: white;
+        }
+
+        .btn-approve:hover {
+            background: #15803d;
+        }
+
+        .btn-reject {
+            background: #ef4444;
+            color: white;
+        }
+
+        .btn-reject:hover {
+            background: #dc2626;
+        }
+
+        .btn-edit {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .btn-edit:hover {
+            background: #2563eb;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Edit Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal {
+            background: white;
+            border-radius: 16px;
+            padding: 32px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-title {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 24px;
+        }
+
+        .modal textarea {
+            width: 100%;
+            min-height: 300px;
+            padding: 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 14px;
+            line-height: 1.6;
+            resize: vertical;
+            margin-bottom: 24px;
+        }
+
+        .modal textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+        }
+
+        .btn-cancel {
+            background: #e2e8f0;
+            color: #475569;
+        }
+
+        .btn-cancel:hover {
+            background: #cbd5e1;
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #64748b;
+        }
+
+        .empty-state-icon {
+            font-size: 64px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+
+        .empty-state-text {
+            font-size: 18px;
+            margin-bottom: 8px;
+        }
+
+        .empty-state-subtext {
+            font-size: 14px;
+        }
+
+        /* Loading */
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #e2e8f0;
+            border-top-color: #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        /* Toast Notifications */
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 2000;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .toast {
+            background: white;
+            padding: 16px 24px;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            animation: slideIn 0.3s ease;
+            min-width: 300px;
+        }
+
+        .toast.success { border-left: 4px solid #16a34a; }
+        .toast.error { border-left: 4px solid #ef4444; }
+        .toast.info { border-left: 4px solid #3b82f6; }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header>
+            <div class="logo">
+                <div class="logo-icon">🤖</div>
+                <h1>SDR Agent</h1>
+            </div>
+            <div class="status-badge">
+                <div class="status-dot"></div>
+                <span>Sistema Online</span>
+            </div>
+        </header>
+
+        <!-- Stats -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon emails">📧</div>
+                <div class="stat-value" id="stat-emails">0</div>
+                <div class="stat-label">E-mails Pendentes</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon responses">✅</div>
+                <div class="stat-value" id="stat-responses">0</div>
+                <div class="stat-label">Respostas Enviadas</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon followups">📅</div>
+                <div class="stat-value" id="stat-followups">0</div>
+                <div class="stat-label">Follow-ups Criados</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon meetings">📆</div>
+                <div class="stat-value" id="stat-meetings">0</div>
+                <div class="stat-label">Reuniões Agendadas</div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content-grid">
+            <!-- Emails Panel -->
+            <div class="panel">
+                <div class="panel-header">
+                    <div class="panel-title">
+                        📨 E-mails para Aprovação
+                    </div>
+                    <button class="refresh-btn" onclick="refreshEmails()" id="refreshBtn">
+                        🔄 Atualizar
+                    </button>
+                </div>
+                <div class="email-list" id="emailList">
+                    <div class="loading">
+                        <div class="spinner"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Follow-ups Panel -->
+            <div class="panel">
+                <div class="panel-header">
+                    <div class="panel-title">
+                        📋 Follow-ups Pendentes
+                    </div>
+                </div>
+                <div class="email-list" id="followupList">
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📋</div>
+                        <div class="empty-state-text">Nenhum follow-up pendente</div>
+                        <div class="empty-state-subtext">Os follow-ups aparecerão aqui quando vencerem</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Modal -->
+    <div class="modal-overlay" id="editModal">
+        <div class="modal">
+            <h2 class="modal-title">✏️ Editar Resposta</h2>
+            <textarea id="editTextarea" placeholder="Digite sua resposta aqui..."></textarea>
+            <div class="modal-actions">
+                <button class="btn btn-cancel" onclick="closeEditModal()">Cancelar</button>
+                <button class="btn btn-edit" onclick="saveEdit()">Salvar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script>
+        // Socket.IO connection
+        const socket = io();
+        let currentEditingId = null;
+
+        // Load initial data
+        document.addEventListener('DOMContentLoaded', () => {
+            loadEmails();
+            loadStats();
+        });
+
+        // Socket events
+        socket.on('update', (data) => {
+            console.log('Update received:', data);
+            if (data.type === 'emails_updated' || data.type === 'refresh_complete') {
+                loadEmails();
+                loadStats();
+                showToast('E-mails atualizados!', 'info');
+            } else if (data.type === 'email_approved') {
+                loadEmails();
+                loadStats();
+                showToast('E-mail enviado com sucesso!', 'success');
+            } else if (data.type === 'email_rejected') {
+                loadEmails();
+                showToast('E-mail rejeitado', 'info');
+            }
+        });
+
+        // Load emails
+        async function loadEmails() {
+            try {
+                const response = await fetch('/api/emails');
+                const data = await response.json();
+                renderEmails(data.emails);
+            } catch (error) {
+                console.error('Erro ao carregar e-mails:', error);
+            }
+        }
+
+        // Render emails
+        function renderEmails(emails) {
+            const emailList = document.getElementById('emailList');
+            
+            if (emails.length === 0) {
+                emailList.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📧</div>
+                        <div class="empty-state-text">Nenhum e-mail pendente</div>
+                        <div class="empty-state-subtext">Você está em dia! Novos e-mails aparecerão aqui</div>
+                    </div>
+                `;
+                return;
+            }
+
+            emailList.innerHTML = emails.map(email => `
+                <div class="email-card" id="email-${email.id}">
+                    <div class="email-header">
+                        <div>
+                            <div class="email-subject">${escapeHtml(email.subject)}</div>
+                            <div class="email-sender">${escapeHtml(email.sender_name)} &lt;${escapeHtml(email.sender)}&gt;</div>
+                        </div>
+                        <div class="email-time">${email.received_at}</div>
+                    </div>
+                    
+                    <div class="email-preview">${escapeHtml(email.preview)}</div>
+                    
+                    <div class="classification-tags">
+                        <span class="tag ${email.classification.lead_temperature || 'cold'}">
+                            ${email.classification.lead_temperature || 'Cold'}
+                        </span>
+                        <span class="tag intent">${email.classification.intent || 'Geral'}</span>
+                    </div>
+                    
+                    <div class="response-section">
+                        <div class="response-label">Resposta Sugerida pela IA:</div>
+                        <div class="response-text" id="response-${email.id}">${escapeHtml(email.suggested_response)}</div>
+                    </div>
+                    
+                    <div class="email-actions">
+                        <button class="btn btn-approve" onclick="approveEmail('${email.id}')">
+                            ✅ Aprovar e Enviar
+                        </button>
+                        <button class="btn btn-edit" onclick="openEditModal('${email.id}')">
+                            ✏️ Editar
+                        </button>
+                        <button class="btn btn-reject" onclick="rejectEmail('${email.id}')">
+                            ❌ Rejeitar
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Load stats
+        async function loadStats() {
+            try {
+                const response = await fetch('/api/stats');
+                const data = await response.json();
+                
+                document.getElementById('stat-emails').textContent = data.pending_emails;
+                document.getElementById('stat-responses').textContent = data.stats.responses_sent;
+                document.getElementById('stat-followups').textContent = data.stats.followups_created;
+                document.getElementById('stat-meetings').textContent = data.stats.meetings_scheduled;
+            } catch (error) {
+                console.error('Erro ao carregar stats:', error);
+            }
+        }
+
+        // Refresh emails
+        async function refreshEmails() {
+            const btn = document.getElementById('refreshBtn');
+            btn.disabled = true;
+            btn.textContent = '⏳ Atualizando...';
+            
+            try {
+                const response = await fetch('/api/refresh', { method: 'POST' });
+                const data = await response.json();
+                
+                if (data.success) {
+                    showToast(`${data.count} e-mail(s) processado(s)`, 'success');
+                }
+            } catch (error) {
+                showToast('Erro ao atualizar', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '🔄 Atualizar';
+            }
+        }
+
+        // Approve email
+        async function approveEmail(emailId) {
+            if (!confirm('Tem certeza que deseja aprovar e enviar este e-mail?')) return;
+            
+            try {
+                const response = await fetch(`/api/approve/${emailId}`, { method: 'POST' });
+                const data = await response.json();
+                
+                if (data.success) {
+                    showToast('E-mail enviado com sucesso!', 'success');
+                } else {
+                    showToast(data.error || 'Erro ao enviar', 'error');
+                }
+            } catch (error) {
+                showToast('Erro ao aprovar e-mail', 'error');
+            }
+        }
+
+        // Reject email
+        async function rejectEmail(emailId) {
+            if (!confirm('Tem certeza que deseja rejeitar este e-mail? Ele será marcado como lido sem resposta.')) return;
+            
+            try {
+                const response = await fetch(`/api/reject/${emailId}`, { method: 'POST' });
+                const data = await response.json();
+                
+                if (data.success) {
+                    showToast('E-mail rejeitado', 'info');
+                }
+            } catch (error) {
+                showToast('Erro ao rejeitar', 'error');
+            }
+        }
+
+        // Edit modal functions
+        function openEditModal(emailId) {
+            currentEditingId = emailId;
+            const responseText = document.getElementById(`response-${emailId}`).textContent;
+            document.getElementById('editTextarea').value = responseText;
+            document.getElementById('editModal').classList.add('active');
+        }
+
+        function closeEditModal() {
+            document.getElementById('editModal').classList.remove('active');
+            currentEditingId = null;
+        }
+
+        async function saveEdit() {
+            if (!currentEditingId) return;
+            
+            const newText = document.getElementById('editTextarea').value;
+            
+            try {
+                const response = await fetch(`/api/edit/${currentEditingId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ response: newText })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    document.getElementById(`response-${currentEditingId}`).textContent = newText;
+                    closeEditModal();
+                    showToast('Resposta atualizada!', 'success');
+                }
+            } catch (error) {
+                showToast('Erro ao salvar', 'error');
+            }
+        }
+
+        // Toast notifications
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = message;
+            
+            container.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.style.animation = 'slideIn 0.3s ease reverse';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // Utility: Escape HTML
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Auto-refresh every 30 seconds
+        setInterval(() => {
+            loadEmails();
+            loadStats();
+        }, 30000);
+    </script>
+</body>
+</html>
